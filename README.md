@@ -9,7 +9,7 @@ This project focuses on Emotion analysis and prediction, with the following main
 - **Temporal Emotion prediction**: Forecasting future sentiment based on historical emotion data.
 - **Web scraping and sentiment analysis**: Collecting and analyzing emotion from selected posts on Reddit and Shui yuan(水源) communities.
 
-![network1](img\network1.png)
+![network1](EmotionPulse/img/network1.png)
 
 ![network2](img\network2.png)
 
