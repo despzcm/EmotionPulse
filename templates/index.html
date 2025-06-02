@@ -1,0 +1,2357 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>情感分析系统</title>
+    <script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/wordcloud2.js') }}"></script>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            display: flex;
+        }
+        .nav-bar {
+            width: 150px;
+            height: 100vh;
+            background: #f8f9fa;
+            position: fixed;
+            left: 0;
+            top: 0;
+            padding: 30px 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .nav-item {
+            width: 90%;
+            padding: 10px 12px;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin: 5px 0;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: "SimHei", "Microsoft YaHei", sans-serif;
+            font-weight: bold;
+        }
+        .nav-item:hover {
+            background-color: #e9ecef;
+            transform: translateX(5px);
+        }
+        .nav-item.active {
+            background-color: #e9ecef;
+            color: #212529;
+        }
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+        .main-content {
+            margin-left: 150px;
+            padding: 20px;
+            width: calc(100% - 150px);
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .left-panel {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .right-panel {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-area {
+            margin-bottom: 20px;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 100px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .history {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .emotions {
+            font-size: 0.9em;
+            color: #666;
+        }
+        .chart-container {
+            height: 400px;
+            position: relative;
+            padding-bottom: 50px;
+        }
+        .average-emotions {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .average-emotions h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .emotion-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px;
+            background-color: white;
+            border-radius: 3px;
+        }
+        .subreddit-select {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        .subreddit-select:hover {
+            border-color: #3498db;
+        }
+        .subreddit-select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+        }
+        .subreddit-select option {
+            padding: 10px;
+            font-size: 16px;
+        }
+        .subreddit-controls {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .clear-button {
+            padding: 6px 15px;
+            font-size: 14px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .clear-button:hover {
+            background-color: #c0392b;
+        }
+        .clear-button:active {
+            transform: scale(0.98);
+        }
+        .chart-panel {
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+            position: relative;
+        }
+        .word-cloud-container {
+            width: 100%;
+            height: 350px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            overflow: hidden;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+        #wordCloud {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        @media screen and (max-width: 1200px) {
+            .chart-container {
+                height: 300px;
+            }
+            .word-cloud-container {
+                height: 300px;
+            }
+        }
+        @media screen and (max-width: 992px) {
+            .chart-container {
+                height: 250px;
+            }
+            .word-cloud-container {
+                height: 250px;
+            }
+        }
+        .placeholder-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #bdc3c7;
+            font-size: 1.2em;
+            font-weight: 500;
+            text-align: center;
+            pointer-events: none;
+        }
+        .input-module {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+        .input-module h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .url-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+        }
+        .url-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+        .file-drop-area {
+            width: 100%;
+            height: 150px;
+            border: 2px dashed #ddd;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        .file-drop-area:hover {
+            border-color: #3498db;
+            background: #f1f8ff;
+        }
+        .file-drop-area.dragover {
+            border-color: #3498db;
+            background: #e3f2fd;
+        }
+        .file-drop-area i {
+            font-size: 2em;
+            color: #95a5a6;
+            margin-bottom: 10px;
+        }
+        .file-drop-area p {
+            margin: 0;
+            color: #7f8c8d;
+        }
+        .file-drop-area input[type="file"] {
+            display: none;
+        }
+        .clear-analysis {
+            position: absolute;
+            top: 0;
+            right: 20px;
+            padding: 8px 15px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            z-index: 10;
+        }
+        .clear-analysis:hover {
+            background-color: #c0392b;
+        }
+        #reddit-analysis-state {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+        #reddit-input-state {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+        /* Reddit分析页面样式 */
+        .input-module {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto 20px;
+            box-sizing: border-box;
+        }
+        .url-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        .file-drop-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .file-drop-area:hover {
+            border-color: #007bff;
+        }
+        .file-drop-area.dragover {
+            border-color: #007bff;
+            background-color: rgba(0,123,255,0.1);
+        }
+        .file-drop-text {
+            color: #666;
+        }
+        .file-drop-text i {
+            font-size: 48px;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+        .file-drop-hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+        /* 加载提示框样式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+        }
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-body {
+            padding: 20px;
+            text-align: center;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #f3f3f3;
+            border-radius: 3px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        #progress-bar-fill {
+            height: 100%;
+            background: #007bff;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #666;
+            cursor: pointer;
+            padding: 0;
+        }
+        .close-btn:hover {
+            color: #333;
+        }
+        .reddit-analysis-container {
+            padding: 20px;
+        }
+        .input-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .url-input, .file-upload {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .url-input-field {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .analyze-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #4CAF50;
+        }
+        .upload-prompt {
+            color: #666;
+        }
+        .file-hint {
+            font-size: 0.8em;
+            color: #999;
+        }
+        .predict-button {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px auto 10px;
+            padding: 12px 24px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+        .predict-button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .predict-button i {
+            font-size: 18px;
+        }
+        .prediction-area {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        .clear-history-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #e74c3c;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .clear-history-button:hover {
+            background-color: #c0392b;
+        }
+        .clear-history-button i {
+            font-size: 18px;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .loading-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            animation: spin 1s linear infinite;
+        }
+        .loading-text {
+            color: #333;
+            font-size: 16px;
+            margin: 0;
+        }
+    </style>
+    <!-- 添加 Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- 添加加载提示 -->
+    <div class="loading-overlay" id="modelLoadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">正在加载情感分析模型，请稍候...</p>
+        </div>
+    </div>
+
+    <div class="nav-bar">
+        <div class="nav-item active" onclick="switchPage('emotion-analysis')">
+            <i class="fas fa-heart"></i>
+            情感分析
+        </div>
+        <div class="nav-item" onclick="switchPage('new-feature')">
+            <i class="fas fa-database"></i>
+            话题分析
+        </div>
+        <div class="nav-item" onclick="switchPage('reddit-analysis')">
+            <i class="fas fa-chart-line"></i>
+            Reddit分析
+        </div>
+        <div class="nav-item" onclick="switchPage('shuiyuan-analysis')">
+            <i class="fas fa-tint"></i>
+            水源分析
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div id="emotion-analysis" class="page active">
+            <h1>情感分析系统</h1>
+            <div class="container">
+                <div class="left-panel">
+                    <div class="input-area">
+                        <textarea id="textInput" placeholder="请输入要分析的文本..."></textarea>
+                        <button onclick="analyzeText()">分析</button>
+                    </div>
+                    <div class="history" id="history">
+                        <!-- 历史消息将在这里显示 -->
+                        <button class="clear-history-button" onclick="clearHistory()">
+                            <i class="fas fa-broom"></i>
+                            清除历史
+                        </button>
+                    </div>
+                </div>
+                <div class="right-panel">
+                    <h2>情绪分布</h2>
+                    <div class="chart-container">
+                        <canvas id="emotionChart"></canvas>
+                    </div>
+                    <div class="average-emotions">
+                        <h3>平均情绪分布</h3>
+                        <div id="averageEmotionsList">
+                            <!-- 平均情绪将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="new-feature" class="page">
+            <h1>Subreddit话题分析</h1>
+            <div class="subreddit-controls">
+                <input list="subredditList" id="subredditSelect" class="subreddit-select" placeholder="搜索或选择Subreddit..." onchange="updateSubredditData()">
+                <datalist id="subredditList">
+                </datalist>
+                <button class="clear-button" onclick="clearSubredditSelection()">清空</button>
+            </div>
+            <div class="chart-panel">
+                <div class="chart-container">
+                    <canvas id="subredditChart"></canvas>
+                    <div id="chartPlaceholder" class="placeholder-text">这里将显示统计图表</div>
+                </div>
+            </div>
+            <div class="word-cloud-container">
+                <canvas id="wordCloud"></canvas>
+                <div id="wordCloudPlaceholder" class="placeholder-text">这里将显示词云</div>
+            </div>
+        </div>
+
+        <div id="reddit-analysis" class="page">
+            <h1 style="display: flex; align-items: center; gap: 15px;">
+                Reddit情感分析
+                <img src="{{ url_for('static', filename='images/Reddit_Lockup_Logo.svg') }}" alt="Reddit" style="height: 40px; width: auto;">
+            </h1>
+            <div class="reddit-analysis-container">
+                <div class="input-section">
+                    <div class="url-input">
+                        <h3>输入Reddit URL</h3>
+                        <input type="text" id="redditUrl" placeholder="输入Reddit帖子URL" class="url-input-field">
+                        <button onclick="analyzeRedditUrl()" class="analyze-button">分析</button>
+                    </div>
+                    <div class="file-upload">
+                        <h3>或上传Reddit数据文件</h3>
+                        <div class="upload-area" id="uploadArea">
+                            <input type="file" id="redditFile" accept=".json" style="display: none;">
+                            <div class="upload-prompt">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>拖拽文件到此处或点击上传</p>
+                                <p class="file-hint">支持JSON格式</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="analysis-result">
+                    <div id="timelineChart" class="chart-container">
+                    </div>
+                    <button id="predictButton" class="predict-button" style="display: none;" onclick="predictFutureEmotions()">
+                        <i class="fas fa-chart-line"></i>
+                        预测未来情感
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 加载提示框 -->
+            <div id="loading-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>正在分析</h3>
+                        <button onclick="cancelAnalysis()" class="close-btn">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="loading-spinner"></div>
+                        <p id="loading-status">正在爬取评论...</p>
+                        <div class="progress-bar">
+                            <div id="progress-bar-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="shuiyuan-analysis" class="page">
+            <h1 style="display: flex; align-items: center; gap: 15px;">
+                水源帖子情感分析
+                <img src="{{ url_for('static', filename='images/水源社区.svg') }}" alt="水源社区" style="height: 40px; width: auto;">
+            </h1>
+            <div class="reddit-analysis-container">
+                <div class="input-section">
+                    <div class="url-input">
+                        <h3>输入水源帖子ID</h3>
+                        <input type="text" id="shuiyuanPostId" placeholder="输入帖子ID，如：377979" class="url-input-field">
+                        <button onclick="analyzeShuiyuanPost()" class="analyze-button">爬取并分析</button>
+                    </div>
+                    <div class="file-upload">
+                        <h3>或上传水源帖子JSON文件</h3>
+                        <div class="upload-area" id="shuiyuanUploadArea">
+                            <input type="file" id="shuiyuanFile" accept=".json" style="display: none;">
+                            <div class="upload-prompt">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>拖拽文件到此处或点击上传</p>
+                                <p class="file-hint">支持JSON格式（需包含body_en翻译）</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="analysis-result">
+                    <div id="shuiyuanTimelineChart" class="chart-container">
+                    </div>
+                    <button id="shuiyuanPredictButton" class="predict-button" style="display: none;" onclick="predictShuiyuanFutureEmotions()">
+                        <i class="fas fa-chart-line"></i>
+                        预测未来情感
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 加载提示框 -->
+            <div id="shuiyuan-loading-modal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>正在分析</h3>
+                        <button onclick="cancelShuiyuanAnalysis()" class="close-btn">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="loading-spinner"></div>
+                        <p id="shuiyuan-loading-status">正在爬取帖子...</p>
+                        <div class="progress-bar">
+                            <div id="shuiyuan-progress-bar-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let emotionChart = null;
+        let subredditChart = null;
+        let subredditData = null;
+        let wordCloudInstance = null;
+        let currentComments = null;
+
+        // 水源分析相关变量
+        let currentShuiyuanTaskId = null;
+        let shuiyuanStatusCheckInterval = null;
+        let shuiyuanTimelineChart = null;
+        let currentShuiyuanComments = null;
+
+        // 等待Chart.js加载完成
+        window.addEventListener('load', function() {
+            console.log('Chart.js已加载');
+            updateAverageEmotions([]);
+            updateChart([]);
+            loadSubredditData();
+        });
+
+        function loadSubredditData() {
+            fetch('/get_subreddit_data')
+            .then(response => response.json())
+            .then(data => {
+                subredditData = data;
+                updateSubredditSelect(data.subreddits);
+            })
+            .catch(error => {
+                console.error('加载Subreddit数据失败:', error);
+            });
+        }
+
+        function updateSubredditSelect(subreddits) {
+            const datalist = document.getElementById('subredditList');
+            datalist.innerHTML = '';
+            
+            // 添加所有选项到datalist
+            subreddits.forEach(subreddit => {
+                const option = document.createElement('option');
+                option.value = `${subreddit.name} (${subreddit.count}条数据)`;
+                option.dataset.name = subreddit.name;  // 存储原始名称
+                datalist.appendChild(option);
+            });
+
+            // 添加输入事件监听器
+            const input = document.getElementById('subredditSelect');
+            input.addEventListener('input', function(e) {
+                const selectedOption = Array.from(datalist.options).find(
+                    option => option.value === e.target.value
+                );
+                if (selectedOption) {
+                    // 如果找到匹配的选项，使用存储的原始名称
+                    e.target.dataset.selectedName = selectedOption.dataset.name;
+                }
+            });
+        }
+
+        function updateSubredditData() {
+            const input = document.getElementById('subredditSelect');
+            const selectedSubreddit = input.dataset.selectedName;
+            if (!selectedSubreddit || !subredditData) return;
+
+            const subredditPosts = subredditData.data[selectedSubreddit];
+            if (!subredditPosts) return;
+
+            // 隐藏占位符
+            document.getElementById('chartPlaceholder').style.display = 'none';
+            document.getElementById('wordCloudPlaceholder').style.display = 'none';
+
+            // 使用滑动窗口计算情绪分布
+            const windowSize = 30;
+            const windows = [];
+            const allEmotions = new Set();
+
+            // 收集所有出现的情绪标签
+            subredditPosts.forEach(post => {
+                post.emotion_labels.forEach(emotion => allEmotions.add(emotion));
+            });
+
+            // 创建滑动窗口
+            for (let i = 0; i <= subredditPosts.length - windowSize; i++) {
+                const windowPosts = subredditPosts.slice(i, i + windowSize);
+                const emotionCounts = {};
+                let totalEmotions = 0;
+                
+                // 统计当前窗口中的情绪
+                windowPosts.forEach(post => {
+                    post.emotion_labels.forEach(emotion => {
+                        emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
+                        totalEmotions += 1;
+                    });
+                });
+
+                // 计算百分比
+                const windowData = {};
+                Array.from(allEmotions).forEach(emotion => {
+                    windowData[emotion] = (emotionCounts[emotion] || 0) / totalEmotions * 100;
+                });
+
+                // 获取窗口中间帖子的时间戳
+                const middlePost = windowPosts[Math.floor(windowSize / 2)];
+                windowData.timestamp = middlePost.created_utc;
+
+                windows.push(windowData);
+            }
+
+            // 更新图表
+            updateSubredditChart(windows, Array.from(allEmotions));
+            
+            // 更新词云
+            updateWordCloud(selectedSubreddit);
+        }
+
+        function updateSubredditChart(windows, emotions) {
+            const ctx = document.getElementById('subredditChart').getContext('2d');
+            if (subredditChart) subredditChart.destroy();
+
+            // 定义固定的情绪顺序（从下到上）
+            const orderedEmotions = ['joy', 'neutral', 'anger', 'sadness', 'fear', 'disgust', 'surprise'];
+            
+            // 准备数据集，按照固定顺序
+            const datasets = orderedEmotions
+                .filter(emotion => emotions.includes(emotion))
+                .map((emotion, index) => ({
+                    label: emotion,
+                    data: windows.map(window => window[emotion] || 0),
+                    backgroundColor: `hsla(${(index * 360) / orderedEmotions.length}, 70%, 50%, 0.6)`,
+                    borderColor: `hsla(${(index * 360) / orderedEmotions.length}, 70%, 50%, 1)`,
+                    fill: true,
+                    pointRadius: 0,
+                    borderWidth: 1,
+                    tension: 0.1,
+                    cubicInterpolationMode: 'default'
+                }));
+
+            subredditChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: windows.map(window => {
+                        const date = new Date(window.timestamp * 1000);
+                        return date.toLocaleDateString('zh-CN', {
+                            month: '2-digit',
+                            day: '2-digit'
+                        });
+                    }),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            right: 10,
+                            left: 10
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: '2019年'
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: '情绪占比 (%)'
+                            },
+                            min: 0,
+                            max: 100
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '情绪趋势分析',
+                            padding: {
+                                bottom: 10
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw.toFixed(1)}%`;
+                                },
+                                title: function(context) {
+                                    const date = new Date(windows[context[0].dataIndex].timestamp * 1000);
+                                    return date.toLocaleDateString('zh-CN', {
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit'
+                                    });
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'right',
+                            align: 'start',
+                            labels: {
+                                font: {
+                                    size: 11
+                                },
+                                boxWidth: 10,
+                                padding: 8
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateWordCloud(subreddit) {
+            fetch(`/get_word_cloud/${subreddit}`)
+                .then(response => response.json())
+                .then(wordFrequencies => {
+                    const canvas = document.getElementById('wordCloud');
+                    if (wordCloudInstance) {
+                        wordCloudInstance.clear();
+                    }
+
+                    // 确保数据格式正确
+                    const words = wordFrequencies.map(item => [item.text, item.value]);
+
+                    const options = {
+                        list: words,
+                        gridSize: 12,
+                        weightFactor: 8,
+                        fontFamily: 'Microsoft YaHei, sans-serif',
+                        color: function(word, weight) {
+                            return (weight > 50) ? '#3498db' : 
+                                   (weight > 30) ? '#2ecc71' : 
+                                   (weight > 20) ? '#f1c40f' : 
+                                   (weight > 10) ? '#e67e22' : '#95a5a6';
+                        },
+                        hover: function(item) {
+                            console.log(`${item[0]}: ${item[1]}`);
+                        },
+                        click: function(item) {
+                            console.log(item[0] + ' - ' + item[1]);
+                        },
+                        minSize: 8,
+                        backgroundColor: '#ffffff',
+                        drawOutOfBound: false,
+                        shrinkToFit: true,
+                        rotateRatio: 0.3,
+                        ellipticity: 0.8,
+                        padding: 5
+                    };
+
+                    // 确保画布尺寸正确
+                    const containerWidth = canvas.parentElement.clientWidth - 40; // 减去padding
+                    const containerHeight = canvas.parentElement.clientHeight - 40;
+                    canvas.width = containerWidth;
+                    canvas.height = containerHeight;
+
+                    // 清除画布
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    wordCloudInstance = WordCloud(canvas, options);
+                })
+                .catch(error => {
+                    console.error('加载词云数据失败:', error);
+                });
+        }
+
+        function analyzeText() {
+            const textInput = document.getElementById('textInput');
+            const text = textInput.value.trim();
+            if (!text) return;
+
+            // 显示加载提示
+            document.getElementById('modelLoadingOverlay').style.display = 'flex';
+
+            // 立即清空输入框
+            textInput.value = '';
+            console.log('输入框已清空');  // 调试信息
+
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            })
+            .then(response => {
+                console.log('收到响应:', response);  // 调试信息
+                return response.json();
+            })
+            .then(data => {
+                console.log('解析的数据:', data);  // 调试信息
+                if (data.avg_emotions && data.avg_emotions.length > 0) {
+                    updateChart(data.avg_emotions);
+                    updateAverageEmotions(data.avg_emotions);
+                } else {
+                    console.log('没有平均情绪数据');  // 调试信息
+                }
+                updateHistory(data);
+            })
+            .catch(error => {
+                console.error('错误:', error);
+                textInput.value = text; // 如果出错，恢复输入内容
+            })
+            .finally(() => {
+                // 隐藏加载提示
+                document.getElementById('modelLoadingOverlay').style.display = 'none';
+            });
+        }
+
+        function updateHistory(data) {
+            console.log('更新历史记录:', data);  // 调试信息
+            const historyDiv = document.getElementById('history');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            const textDiv = document.createElement('div');
+            textDiv.textContent = data.text;
+            
+            const emotionsDiv = document.createElement('div');
+            emotionsDiv.className = 'emotions';
+            emotionsDiv.textContent = 'Top 5 情绪: ' + 
+                data.top5_emotions.map(e => `${e[0]}(${(e[1] * 100).toFixed(1)}%)`).join(', ');
+            
+            messageDiv.appendChild(textDiv);
+            messageDiv.appendChild(emotionsDiv);
+            historyDiv.insertBefore(messageDiv, historyDiv.firstChild);
+        }
+
+        function updateChart(emotions) {
+            if (!emotions || emotions.length === 0) return;
+            const ctx = document.getElementById('emotionChart').getContext('2d');
+            if (emotionChart) emotionChart.destroy();
+
+            emotionChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: emotions.map(e => e[0]),
+                    datasets: [{
+                        data: emotions.map(e => e[1] * 100),
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0',
+                            '#9966FF'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.label}: ${(emotions[context.dataIndex][1] * 100).toFixed(1)}%`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true
+                    }
+                }
+            });
+        }
+
+        function updateAverageEmotions(emotions) {
+            console.log('更新平均情绪:', emotions);  // 调试信息
+            const container = document.getElementById('averageEmotionsList');
+            container.innerHTML = ''; // 清空现有内容
+
+            if (!emotions || emotions.length === 0) {
+                console.log('没有平均情绪数据');  // 调试信息
+                container.innerHTML = '<div class="emotion-item">暂无数据</div>';
+                return;
+            }
+
+            emotions.forEach(emotion => {
+                const div = document.createElement('div');
+                div.className = 'emotion-item';
+                div.innerHTML = `
+                    <span>${emotion[0]}</span>
+                    <span>${(emotion[1] * 100).toFixed(1)}%</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // 支持按Enter键发送
+        document.getElementById('textInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                analyzeText();
+            }
+        });
+
+        function switchPage(pageId) {
+            // 隐藏所有页面
+            document.querySelectorAll('.page').forEach(page => {
+                page.style.display = 'none';
+            });
+            
+            // 显示选中的页面
+            document.getElementById(pageId).style.display = 'block';
+            
+            // 更新导航栏激活状态
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+
+            // 如果切换到新功能页面，重新初始化词云
+            if (pageId === 'new-feature' && document.getElementById('subredditSelect').value) {
+                const selectedSubreddit = document.getElementById('subredditSelect').dataset.selectedName;
+                if (selectedSubreddit) {
+                    updateWordCloud(selectedSubreddit);
+                }
+            }
+        }
+
+        function clearSubredditSelection() {
+            const input = document.getElementById('subredditSelect');
+            input.value = '';
+            input.dataset.selectedName = '';
+            
+            // 清除词云
+            const canvas = document.getElementById('wordCloud');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 清除图表
+            if (subredditChart) {
+                subredditChart.destroy();
+                subredditChart = null;
+            }
+
+            // 显示占位符
+            document.getElementById('chartPlaceholder').style.display = 'block';
+            document.getElementById('wordCloudPlaceholder').style.display = 'block';
+        }
+
+        // Reddit分析相关变量
+        let currentTaskId = null;
+        let statusCheckInterval = null;
+        
+        // 文件上传处理
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('redditFile');
+
+            // 如果找不到元素则直接返回，避免错误
+            if (!uploadArea || !fileInput) return;
+            
+            // 点击上传区域触发文件选择
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+            
+            // 拖拽相关事件
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadArea.style.borderColor = '#4CAF50';
+                uploadArea.style.backgroundColor = '#f0f9f0';
+            });
+            
+            uploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadArea.style.borderColor = '#ddd';
+                uploadArea.style.backgroundColor = 'white';
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                uploadArea.style.borderColor = '#ddd';
+                uploadArea.style.backgroundColor = 'white';
+                
+                const file = e.dataTransfer.files[0];
+                if (file && file.name.endsWith('.json')) {
+                    handleFileUpload(file);
+                } else {
+                    alert('请上传JSON格式的文件');
+                }
+            });
+            
+            // 文件选择事件
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    handleFileUpload(file);
+                }
+            });
+        });
+        
+        function handleFileUpload(file) {
+            // 显示加载提示框
+            const loadingModal = document.getElementById('loading-modal');
+            const loadingStatus = document.getElementById('loading-status');
+            const progressBarFill = document.getElementById('progress-bar-fill');
+            
+            loadingModal.style.display = 'flex';
+            loadingStatus.textContent = '正在分析文件...';
+            progressBarFill.style.width = '0%';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/analyze_reddit_file', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadingStatus.textContent = '分析完成';
+                    progressBarFill.style.width = '100%';
+                    setTimeout(() => {
+                        loadingModal.style.display = 'none';
+                        renderTimelineChart(data.data);
+                    }, 500);
+                } else {
+                    loadingModal.style.display = 'none';
+                    alert('分析失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingModal.style.display = 'none';
+                alert('上传失败，请重试');
+            });
+        }
+
+        function analyzeRedditUrl() {
+            const url = document.getElementById('redditUrl').value.trim();
+            if (!url) {
+                alert('请输入Reddit帖子链接');
+                return;
+            }
+            
+            // 显示加载提示框
+            document.getElementById('loading-modal').style.display = 'flex';
+            document.getElementById('loading-status').textContent = '正在爬取评论...';
+            document.getElementById('progress-bar-fill').style.width = '0%';
+            
+            fetch('/analyze_reddit_url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentTaskId = data.task_id;
+                    startStatusCheck();
+                } else {
+                    alert('分析失败: ' + data.error);
+                    hideLoadingModal();
+                }
+            })
+            .catch(error => {
+                alert('请求失败: ' + error);
+                hideLoadingModal();
+            });
+        }
+
+        function startStatusCheck() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+            
+            statusCheckInterval = setInterval(() => {
+                if (!currentTaskId) return;
+                
+                fetch(`/check_analysis_status/${currentTaskId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            updateLoadingStatus(data);
+                            
+                            if (data.status === 'completed' || data.status === 'error' || data.status === 'cancelled') {
+                                clearInterval(statusCheckInterval);
+                                hideLoadingModal();
+                                
+                                if (data.status === 'completed') {
+                                    showAnalysisState();
+                                    renderTimelineChart(data.result);
+                                } else if (data.status === 'error') {
+                                    alert('分析失败: ' + data.error);
+                                }
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('状态检查失败:', error);
+                    });
+            }, 1000);
+        }
+
+        function updateLoadingStatus(data) {
+            const statusText = {
+                'pending': '准备开始...',
+                'crawling': '正在爬取评论...',
+                'analyzing': '正在分析情感...',
+                'completed': '分析完成',
+                'error': '分析失败',
+                'cancelled': '已取消'
+            };
+            
+            document.getElementById('loading-status').textContent = statusText[data.status] || data.status;
+            document.getElementById('progress-bar-fill').style.width = `${data.progress}%`;
+        }
+
+        function cancelAnalysis() {
+            if (currentTaskId) {
+                fetch(`/cancel_analysis/${currentTaskId}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        hideLoadingModal();
+                        clearInterval(statusCheckInterval);
+                        currentTaskId = null;
+                    }
+                });
+            }
+        }
+
+        function hideLoadingModal() {
+            document.getElementById('loading-modal').style.display = 'none';
+        }
+
+        function showAnalysisState() {
+            // 目前页面没有输入/分析状态切换，因此保留空实现，避免报错
+        }
+
+        // 使用 Chart.js 渲染时间线堆叠面积图
+        let redditTimelineChart = null;
+
+        function renderTimelineChart(data) {
+            // 保存当前评论数据用于预测
+            currentComments = data;
+            
+            // 保证数据存在
+            if (!data || data.length === 0) {
+                alert('未获取到可视化数据');
+                return;
+            }
+
+            // 验证和修复历史数据的归一化
+            console.log('=== 验证历史数据归一化 ===');
+            data.forEach((item, index) => {
+                const emotions = Object.keys(item).filter(key => key !== 'timestamp' && key !== 'time');
+                const emotionValues = emotions.map(emotion => item[emotion] || 0);
+                const sum = emotionValues.reduce((acc, val) => acc + val, 0);
+                
+                console.log(`历史数据点 ${index + 1}:`);
+                console.log(`  情感: [${emotions.join(', ')}]`);
+                console.log(`  原始值: [${emotionValues.map(v => v.toFixed(1)).join(', ')}]`);
+                console.log(`  总和: ${sum.toFixed(2)}`);
+                
+                // 如果总和不接近100，进行归一化
+                if (Math.abs(sum - 100) > 0.1) {
+                    console.log(`  警告：总和不为100，进行归一化`);
+                    if (sum > 0) {
+                        emotions.forEach(emotion => {
+                            const originalValue = item[emotion] || 0;
+                            item[emotion] = (originalValue / sum) * 100;
+                        });
+                        const newSum = emotions.reduce((acc, emotion) => acc + (item[emotion] || 0), 0);
+                        console.log(`  归一化后总和: ${newSum.toFixed(2)}`);
+                    } else {
+                        // 如果所有值都为0，设为均匀分布
+                        const uniformValue = 100 / emotions.length;
+                        emotions.forEach(emotion => {
+                            item[emotion] = uniformValue;
+                        });
+                        console.log(`  设为均匀分布: ${uniformValue.toFixed(2)} each`);
+                    }
+                }
+            });
+
+            // 动态创建 canvas
+            const container = document.getElementById('timelineChart');
+            container.innerHTML = '<canvas id="redditTimelineCanvas"></canvas>';
+            const ctx = document.getElementById('redditTimelineCanvas').getContext('2d');
+
+            // 收集所有情感组
+            const emotionGroupsSet = new Set();
+            data.forEach(item => {
+                Object.keys(item).forEach(key => {
+                    if (key !== 'timestamp' && key !== 'time') {
+                        emotionGroupsSet.add(key);
+                    }
+                });
+            });
+
+            // 定义固定顺序，保持颜色一致
+            const orderedEmotions = ['joy', 'neutral', 'anger', 'sadness', 'fear', 'disgust', 'surprise'];
+            const emotionGroups = orderedEmotions.filter(e => emotionGroupsSet.has(e))
+                .concat(Array.from(emotionGroupsSet).filter(e => !orderedEmotions.includes(e)));
+
+            // 生成颜色
+            const total = emotionGroups.length;
+            const bgColors = emotionGroups.map((_, idx) => `hsla(${(idx * 360) / total}, 70%, 60%, 0.6)`);
+            const borderColors = emotionGroups.map((_, idx) => `hsla(${(idx * 360) / total}, 70%, 40%, 1)`);
+
+            // 计算时间跨度
+            const timestamps = data.map(item => item.timestamp);
+            const timeSpan = Math.max(...timestamps) - Math.min(...timestamps);
+            
+            // 根据时间跨度选择显示格式和单位
+            let timeFormat;
+            let timeUnit;
+            const startDate = new Date(Math.min(...timestamps) * 1000);
+            const endDate = new Date(Math.max(...timestamps) * 1000);
+            
+            if (timeSpan <= 24 * 3600) {  // 小于等于1天
+                timeFormat = { hour: '2-digit', minute: '2-digit' };
+                timeUnit = `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')} - ${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
+            } else if (timeSpan <= 7 * 24 * 3600) {  // 小于等于7天
+                timeFormat = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+                timeUnit = `${startDate.getMonth() + 1}/${startDate.getDate()} ${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')} - ${endDate.getMonth() + 1}/${endDate.getDate()} ${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
+            } else {
+                timeFormat = { year: 'numeric', month: '2-digit', day: '2-digit' };
+                timeUnit = `${startDate.getFullYear()}/${(startDate.getMonth() + 1).toString().padStart(2, '0')}/${startDate.getDate().toString().padStart(2, '0')} - ${endDate.getFullYear()}/${(endDate.getMonth() + 1).toString().padStart(2, '0')}/${endDate.getDate().toString().padStart(2, '0')}`;
+            }
+
+            // 生成标签（日期）
+            const labels = data.map(item => {
+                const date = new Date(item.timestamp * 1000);
+                return date.toLocaleString('zh-CN', timeFormat);
+            });
+
+            // 生成数据集
+            const datasets = emotionGroups.map((emotion, idx) => ({
+                label: emotion,
+                data: data.map(item => item[emotion] || 0),
+                backgroundColor: bgColors[idx],
+                borderColor: borderColors[idx],
+                fill: true,
+                pointRadius: 0,
+                borderWidth: 1,
+                tension: 0.1,
+                cubicInterpolationMode: 'default'
+            }));
+
+            // 如果已有图表则销毁
+            if (redditTimelineChart) redditTimelineChart.destroy();
+
+            redditTimelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { left: 10, right: 10 } },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: { 
+                                display: true, 
+                                text: timeUnit,
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            ticks: { maxRotation: 45, minRotation: 45 }
+                        },
+                        y: {
+                            stacked: true,
+                            title: { display: true, text: '情绪占比 (%)' },
+                            min: 0,
+                            max: 100
+                        }
+                    },
+                    plugins: {
+                        title: { display: true, text: '情感分布时间线', padding: { bottom: 10 } },
+                        legend: {
+                            position: 'right',
+                            align: 'start',
+                            labels: { font: { size: 11 }, boxWidth: 10, padding: 8 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: ${context.raw.toFixed(1)}%`;
+                                },
+                                title: function(context) {
+                                    const index = context[0].dataIndex;
+                                    const date = new Date(data[index].timestamp * 1000);
+                                    return date.toLocaleString('zh-CN', timeFormat);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 显示预测按钮
+            const predictButton = document.getElementById('predictButton');
+            if (predictButton) {
+                predictButton.style.display = 'flex';
+            }
+        }
+
+        function predictFutureEmotions() {
+            if (!currentComments) {
+                alert('没有可用的评论数据');
+                return;
+            }
+
+            // 显示加载提示框
+            document.getElementById('loading-modal').style.display = 'flex';
+            document.getElementById('loading-status').textContent = '正在预测未来情感...';
+            document.getElementById('progress-bar-fill').style.width = '0%';
+
+            // 准备发送到后端的数据
+            const commentsToSend = currentComments.map(item => ({
+                timestamp: item.timestamp,
+                time: new Date(item.timestamp * 1000).toISOString().slice(0, 19).replace('T', ' '),
+                ...Object.fromEntries(
+                    Object.entries(item).filter(([key]) => 
+                        key !== 'timestamp' && key !== 'time'
+                    )
+                )
+            }));
+
+            fetch('/predict_future_emotions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    comments: commentsToSend
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新图表，添加预测数据
+                    updateChartWithPredictions(data.data);
+                    document.getElementById('loading-modal').style.display = 'none';
+                } else {
+                    alert('预测失败: ' + data.error);
+                    document.getElementById('loading-modal').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                alert('预测请求失败: ' + error);
+                document.getElementById('loading-modal').style.display = 'none';
+            });
+        }
+
+        function updateChartWithPredictions(predictionData) {
+            if (!redditTimelineChart) return;
+
+            // 获取当前图表数据
+            const currentData = redditTimelineChart.data;
+            
+            // 定义固定的情感顺序，确保与后端一致
+            const orderedEmotions = ['joy', 'neutral', 'anger', 'sadness', 'fear', 'disgust', 'surprise'];
+            
+            // 计算时间跨度
+            const timestamps = currentComments.map(item => item.timestamp);
+            const timeSpan = Math.max(...timestamps) - Math.min(...timestamps);
+            
+            // 根据时间跨度选择显示格式
+            let timeFormat;
+            if (timeSpan <= 24 * 3600) {  // 小于等于1天
+                timeFormat = { hour: '2-digit', minute: '2-digit' };
+            } else if (timeSpan <= 7 * 24 * 3600) {  // 小于等于7天
+                timeFormat = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+            } else {
+                timeFormat = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            }
+            
+            // 添加预测数据
+            const predictionLabels = predictionData.map(item => {
+                const date = new Date(item.timestamp * 1000);
+                return date.toLocaleString('zh-CN', timeFormat);
+            });
+            
+            // 验证预测数据格式并进行详细调试
+            console.log('=== 预测数据调试信息 ===');
+            predictionData.forEach((pred, index) => {
+                console.log(`预测${index + 1}:`);
+                console.log(`  时间: ${new Date(pred.timestamp * 1000).toLocaleString()}`);
+                console.log(`  emotion_probabilities: ${JSON.stringify(pred.emotion_probabilities)}`);
+                console.log(`  数组长度: ${pred.emotion_probabilities.length}`);
+                
+                const probSum = pred.emotion_probabilities.reduce((sum, prob) => sum + prob, 0);
+                console.log(`  概率总和: ${probSum.toFixed(6)}`);
+                
+                orderedEmotions.forEach((emotion, idx) => {
+                    const prob = pred.emotion_probabilities[idx] || 0;
+                    console.log(`  ${emotion} (索引${idx}): ${prob.toFixed(3)} -> ${(prob * 100).toFixed(1)}%`);
+                });
+            });
+            
+            // 创建历史数据集
+            const historicalDatasets = currentData.datasets.map(dataset => ({
+                ...dataset,
+                data: dataset.data,
+                fill: true,
+                pointRadius: 0,
+                borderWidth: 1,
+                tension: 0.1,
+                cubicInterpolationMode: 'default'
+            }));
+
+            // 创建预测数据集
+            const predictionDatasets = currentData.datasets.map(dataset => {
+                const newData = new Array(currentData.labels.length).fill(null);
+                
+                predictionData.forEach((pred, index) => {
+                    let emotionProbs = pred.emotion_probabilities;
+                    
+                    // 验证和修复归一化
+                    const probSum = emotionProbs.reduce((sum, prob) => sum + prob, 0);
+                    
+                    // 如果总和不为1，进行归一化
+                    if (Math.abs(probSum - 1.0) > 1e-10) {
+                        console.log(`警告：预测${index + 1}概率总和不为1 (${probSum})，进行归一化`);
+                        emotionProbs = emotionProbs.map(prob => prob / probSum);
+                    }
+                    
+                    // 使用固定的情感顺序索引，而不是依赖数据集标签查找
+                    const emotionIndex = orderedEmotions.indexOf(dataset.label);
+                    if (emotionIndex !== -1 && emotionIndex < emotionProbs.length) {
+                        const percentage = emotionProbs[emotionIndex] * 100;
+                        newData.push(percentage);
+                        
+                        console.log(`预测${index + 1} - 情感"${dataset.label}"(索引${emotionIndex}): ${emotionProbs[emotionIndex].toFixed(3)} -> ${percentage.toFixed(1)}%`);
+                    } else {
+                        // 如果找不到对应的情感，设为0
+                        newData.push(0);
+                        console.log(`预测${index + 1} - 情感"${dataset.label}": 未找到对应数据，设为0%`);
+                    }
+                });
+                
+                return {
+                    ...dataset,
+                    data: newData,
+                    fill: true,
+                    pointRadius: 0,
+                    borderWidth: 1,
+                    tension: 0.1,
+                    cubicInterpolationMode: 'default',
+                    borderDash: [5, 5],
+                    borderColor: dataset.borderColor,
+                    backgroundColor: dataset.backgroundColor
+                };
+            });
+
+            // 更新图表
+            redditTimelineChart.data.labels = [...currentData.labels, ...predictionLabels];
+            redditTimelineChart.data.datasets = [...historicalDatasets, ...predictionDatasets];
+            
+            // 添加预测区域标记
+            const ctx = redditTimelineChart.ctx;
+            const chartArea = redditTimelineChart.chartArea;
+            const predictionStartX = chartArea.left + (chartArea.right - chartArea.left) * (currentData.labels.length / (currentData.labels.length + predictionLabels.length));
+            
+            // 绘制预测区域背景
+            ctx.save();
+            // 使用渐变背景
+            const gradient = ctx.createLinearGradient(predictionStartX, chartArea.top, chartArea.right, chartArea.top);
+            gradient.addColorStop(0, 'rgba(200, 200, 200, 0.3)');
+            gradient.addColorStop(1, 'rgba(200, 200, 200, 0.1)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(predictionStartX, chartArea.top, chartArea.right - predictionStartX, chartArea.bottom - chartArea.top);
+            
+            // 添加预测区域分隔线
+            ctx.beginPath();
+            ctx.moveTo(predictionStartX, chartArea.top);
+            ctx.lineTo(predictionStartX, chartArea.bottom);
+            ctx.strokeStyle = 'rgba(150, 150, 150, 0.8)';  // 增加分隔线的不透明度
+            ctx.lineWidth = 2;  // 增加分隔线的宽度
+            ctx.stroke();
+            
+            // 添加预测区域文字标签
+            ctx.font = 'bold 14px Microsoft YaHei';  // 增加字体大小和粗细
+            ctx.fillStyle = 'rgba(100, 100, 100, 0.9)';  // 增加文字不透明度
+            ctx.textAlign = 'center';
+            ctx.fillText('预测区域', predictionStartX + (chartArea.right - predictionStartX) / 2, chartArea.top + 25);
+            
+            ctx.restore();
+            
+            // 更新图表配置
+            redditTimelineChart.options.scales.x.ticks = {
+                maxRotation: 45,
+                minRotation: 45,
+                callback: function(value, index) {
+                    if (index < currentComments.length) {
+                        // 历史数据部分
+                        const timestamp = currentComments[index].timestamp;
+                        const date = new Date(timestamp * 1000);
+                        return date.toLocaleString('zh-CN', timeFormat);
+                    } else {
+                        // 预测数据部分
+                        const predIndex = index - currentComments.length;
+                        const timestamp = predictionData[predIndex].timestamp;
+                        const date = new Date(timestamp * 1000);
+                        return date.toLocaleString('zh-CN', timeFormat);
+                    }
+                }
+            };
+            
+            // 更新图例配置
+            redditTimelineChart.options.plugins.legend = {
+                position: 'right',
+                align: 'start',
+                labels: {
+                    font: { size: 11 },
+                    boxWidth: 10,
+                    padding: 8,
+                    generateLabels: function(chart) {
+                        const datasets = chart.data.datasets;
+                        const labels = [];
+                        const emotionCount = datasets.length / 2; // 因为每个情感有两个数据集（历史和预测）
+                        
+                        // 只处理前一半的数据集（历史数据）
+                        for (let i = 0; i < emotionCount; i++) {
+                            const dataset = datasets[i];
+                            labels.push({
+                                text: dataset.label,
+                                fillStyle: dataset.backgroundColor,
+                                strokeStyle: dataset.borderColor,
+                                lineWidth: dataset.borderWidth,
+                                lineDash: [], // 历史数据使用实线
+                                hidden: !chart.isDatasetVisible(i) && !chart.isDatasetVisible(i + emotionCount),
+                                index: i
+                            });
+                        }
+                        return labels;
+                    }
+                },
+                onClick: function(e, legendItem, legend) {
+                    const index = legendItem.index;
+                    const chart = legend.chart;
+                    const datasets = chart.data.datasets;
+                    const emotionCount = datasets.length / 2;
+                    
+                    // 同时切换历史数据和预测数据的可见性
+                    const historicalDataset = datasets[index];
+                    const predictionDataset = datasets[index + emotionCount];
+                    
+                    const isHidden = !chart.isDatasetVisible(index);
+                    chart.setDatasetVisibility(index, isHidden);
+                    chart.setDatasetVisibility(index + emotionCount, isHidden);
+                    
+                    chart.update();
+                }
+            };
+            
+            // 调试输出最终的数据集信息
+            console.log('=== 最终数据集信息 ===');
+            console.log(`历史数据集数量: ${historicalDatasets.length}`);
+            console.log(`预测数据集数量: ${predictionDatasets.length}`);
+            historicalDatasets.forEach((dataset, idx) => {
+                console.log(`历史数据集${idx}: ${dataset.label}, 数据点: ${dataset.data.length}`);
+            });
+            predictionDatasets.forEach((dataset, idx) => {
+                console.log(`预测数据集${idx}: ${dataset.label}, 数据点: ${dataset.data.length}`);
+                console.log(`  预测数据: [${dataset.data.slice(-5).map(v => v === null ? 'null' : v.toFixed(1)).join(', ')}]`);
+            });
+            
+            // 更新图表
+            redditTimelineChart.update();
+        }
+
+        function clearHistory() {
+            // 清空历史记录显示
+            document.getElementById('history').innerHTML = `
+                <button class="clear-history-button" onclick="clearHistory()">
+                    <i class="fas fa-broom"></i>
+                    清除历史
+                </button>
+            `;
+            
+            // 清空图表
+            if (emotionChart) {
+                emotionChart.destroy();
+                emotionChart = null;
+            }
+            
+            // 清空平均情绪显示
+            document.getElementById('averageEmotionsList').innerHTML = '<div class="emotion-item">暂无数据</div>';
+            
+            // 发送请求到后端清除历史记录
+            fetch('/reset_history', {
+                method: 'POST'
+            }).catch(error => {
+                console.error('清除历史记录失败:', error);
+            });
+        }
+
+        // ========== 水源帖子分析相关函数 ==========
+        
+        // 水源文件上传处理
+        document.addEventListener('DOMContentLoaded', function() {
+            // 水源文件上传区域
+            const shuiyuanUploadArea = document.getElementById('shuiyuanUploadArea');
+            const shuiyuanFileInput = document.getElementById('shuiyuanFile');
+
+            shuiyuanUploadArea.addEventListener('click', () => {
+                shuiyuanFileInput.click();
+            });
+
+            shuiyuanUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                shuiyuanUploadArea.classList.add('dragover');
+            });
+
+            shuiyuanUploadArea.addEventListener('dragleave', () => {
+                shuiyuanUploadArea.classList.remove('dragover');
+            });
+
+            shuiyuanUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                shuiyuanUploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleShuiyuanFileUpload(files[0]);
+                }
+            });
+
+            shuiyuanFileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleShuiyuanFileUpload(e.target.files[0]);
+                }
+            });
+        });
+
+        function handleShuiyuanFileUpload(file) {
+            // 显示加载提示框
+            const loadingModal = document.getElementById('shuiyuan-loading-modal');
+            const loadingStatus = document.getElementById('shuiyuan-loading-status');
+            const progressBarFill = document.getElementById('shuiyuan-progress-bar-fill');
+            
+            loadingModal.style.display = 'flex';
+            loadingStatus.textContent = '正在分析文件...';
+            progressBarFill.style.width = '0%';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            fetch('/analyze_shuiyuan_file', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadingStatus.textContent = '分析完成';
+                    progressBarFill.style.width = '100%';
+                    setTimeout(() => {
+                        loadingModal.style.display = 'none';
+                        renderShuiyuanTimelineChart(data.data);
+                    }, 500);
+                } else {
+                    loadingModal.style.display = 'none';
+                    alert('分析失败: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingModal.style.display = 'none';
+                alert('上传失败，请重试');
+            });
+        }
+
+        function analyzeShuiyuanPost() {
+            const postId = document.getElementById('shuiyuanPostId').value.trim();
+            if (!postId) {
+                alert('请输入水源帖子ID');
+                return;
+            }
+            
+            // 显示加载提示框
+            document.getElementById('shuiyuan-loading-modal').style.display = 'flex';
+            document.getElementById('shuiyuan-loading-status').textContent = '正在爬取帖子...';
+            document.getElementById('shuiyuan-progress-bar-fill').style.width = '0%';
+            
+            fetch('/analyze_shuiyuan_post', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ post_id: postId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    currentShuiyuanTaskId = data.task_id;
+                    startShuiyuanStatusCheck();
+                } else {
+                    alert('分析失败: ' + data.error);
+                    hideShuiyuanLoadingModal();
+                }
+            })
+            .catch(error => {
+                alert('请求失败: ' + error);
+                hideShuiyuanLoadingModal();
+            });
+        }
+
+        function startShuiyuanStatusCheck() {
+            shuiyuanStatusCheckInterval = setInterval(() => {
+                if (currentShuiyuanTaskId) {
+                    fetch(`/check_analysis_status/${currentShuiyuanTaskId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateShuiyuanLoadingStatus(data);
+                        
+                        if (data.status === 'completed' && data.result) {
+                            clearInterval(shuiyuanStatusCheckInterval);
+                            hideShuiyuanLoadingModal();
+                            renderShuiyuanTimelineChart(data.result);
+                        } else if (data.status === 'error') {
+                            clearInterval(shuiyuanStatusCheckInterval);
+                            hideShuiyuanLoadingModal();
+                            alert('分析失败: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('检查状态失败:', error);
+                    });
+                }
+            }, 1000);
+        }
+
+        function updateShuiyuanLoadingStatus(data) {
+            const statusText = {
+                'pending': '准备开始...',
+                'crawling': '正在爬取帖子...',
+                'analyzing': '正在分析情感...',
+                'completed': '分析完成',
+                'error': '分析失败',
+                'cancelled': '已取消'
+            };
+            
+            document.getElementById('shuiyuan-loading-status').textContent = statusText[data.status] || data.status;
+            document.getElementById('shuiyuan-progress-bar-fill').style.width = `${data.progress}%`;
+        }
+
+        function cancelShuiyuanAnalysis() {
+            if (currentShuiyuanTaskId) {
+                fetch(`/cancel_analysis/${currentShuiyuanTaskId}`, {
+                    method: 'POST'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        hideShuiyuanLoadingModal();
+                        clearInterval(shuiyuanStatusCheckInterval);
+                        currentShuiyuanTaskId = null;
+                    }
+                });
+            }
+        }
+
+        function hideShuiyuanLoadingModal() {
+            document.getElementById('shuiyuan-loading-modal').style.display = 'none';
+        }
+
+        // 使用 Chart.js 渲染水源帖子时间线堆叠面积图
+        function renderShuiyuanTimelineChart(data) {
+            console.log('渲染水源帖子时间线图表，数据:', data);
+            currentShuiyuanComments = data;
+
+            // 显示预测按钮
+            const predictButton = document.getElementById('shuiyuanPredictButton');
+            if (predictButton) {
+                predictButton.style.display = 'block';
+            }
+
+            // 验证数据格式
+            if (!Array.isArray(data) || data.length === 0) {
+                console.error('数据格式错误或为空');
+                return;
+            }
+
+            // 收集所有情感
+            const emotions = ['joy', 'neutral', 'anger', 'sadness', 'fear', 'disgust', 'surprise'];
+
+            // 数据归一化处理（确保总和为100）
+            data.forEach((item, index) => {
+                const sum = emotions.reduce((acc, emotion) => acc + (item[emotion] || 0), 0);
+                console.log(`数据点 ${index + 1} 归一化前总和: ${sum.toFixed(2)}`);
+                
+                if (Math.abs(sum - 100) > 0.1) {
+                    console.log(`  警告：总和不为100，进行归一化`);
+                    if (sum > 0) {
+                        emotions.forEach(emotion => {
+                            const originalValue = item[emotion] || 0;
+                            item[emotion] = (originalValue / sum) * 100;
+                        });
+                        const newSum = emotions.reduce((acc, emotion) => acc + (item[emotion] || 0), 0);
+                        console.log(`  归一化后总和: ${newSum.toFixed(2)}`);
+                    } else {
+                        // 如果所有值都为0，设为均匀分布
+                        const uniformValue = 100 / emotions.length;
+                        emotions.forEach(emotion => {
+                            item[emotion] = uniformValue;
+                        });
+                        console.log(`  设为均匀分布: ${uniformValue.toFixed(2)} each`);
+                    }
+                }
+            });
+
+            // 动态创建 canvas
+            const container = document.getElementById('shuiyuanTimelineChart');
+            container.innerHTML = '<canvas id="shuiyuanTimelineCanvas"></canvas>';
+            const ctx = document.getElementById('shuiyuanTimelineCanvas').getContext('2d');
+
+            // 定义固定顺序，保持颜色一致
+            const orderedEmotions = ['joy', 'neutral', 'anger', 'sadness', 'fear', 'disgust', 'surprise'];
+
+            // 准备数据集
+            const datasets = orderedEmotions.map((emotion, index) => ({
+                label: emotion,
+                data: data.map(item => item[emotion] || 0),
+                backgroundColor: `hsla(${(index * 51.4)}, 70%, 60%, 0.6)`,
+                borderColor: `hsla(${(index * 51.4)}, 70%, 50%, 1)`,
+                fill: true,
+                pointRadius: 0,
+                borderWidth: 1,
+                tension: 0.1,
+                cubicInterpolationMode: 'default'
+            }));
+
+            // 计算时间跨度
+            const timestamps = data.map(item => item.timestamp);
+            const timeSpan = Math.max(...timestamps) - Math.min(...timestamps);
+            
+            // 根据时间跨度选择显示格式
+            let timeFormat;
+            if (timeSpan <= 24 * 3600) {  // 小于等于1天
+                timeFormat = { hour: '2-digit', minute: '2-digit' };
+            } else if (timeSpan <= 7 * 24 * 3600) {  // 小于等于7天
+                timeFormat = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+            } else {
+                timeFormat = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            }
+
+            // 创建图表
+            shuiyuanTimelineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(item => {
+                        const date = new Date(item.timestamp * 1000);
+                        return date.toLocaleString('zh-CN', timeFormat);
+                    }),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '水源帖子情感时间线分析',
+                            font: { size: 16, weight: 'bold' }
+                        },
+                        legend: {
+                            position: 'right',
+                            align: 'start',
+                            labels: {
+                                font: { size: 11 },
+                                boxWidth: 10,
+                                padding: 8
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '时间'
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '情感分布比例 (%)'
+                            },
+                            stacked: true,
+                            min: 0,
+                            max: 100
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            });
+
+            console.log('水源帖子时间线图表创建完成');
+        }
+
+        function predictShuiyuanFutureEmotions() {
+            if (!currentShuiyuanComments) {
+                alert('没有可用的评论数据');
+                return;
+            }
+
+            // 显示加载提示框
+            document.getElementById('shuiyuan-loading-modal').style.display = 'flex';
+            document.getElementById('shuiyuan-loading-status').textContent = '正在预测未来情感...';
+            document.getElementById('shuiyuan-progress-bar-fill').style.width = '0%';
+
+            // 准备发送到后端的数据
+            const commentsToSend = currentShuiyuanComments.map(item => ({
+                timestamp: item.timestamp,
+                time: new Date(item.timestamp * 1000).toISOString().slice(0, 19).replace('T', ' '),
+                ...Object.fromEntries(
+                    Object.entries(item).filter(([key]) => 
+                        key !== 'timestamp' && key !== 'time'
+                    )
+                )
+            }));
+
+            fetch('/predict_future_emotions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    comments: commentsToSend
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // 更新图表，添加预测数据
+                    updateShuiyuanChartWithPredictions(data.data);
+                    document.getElementById('shuiyuan-loading-modal').style.display = 'none';
+                } else {
+                    alert('预测失败: ' + data.error);
+                    document.getElementById('shuiyuan-loading-modal').style.display = 'none';
+                }
+            })
+            .catch(error => {
+                alert('预测请求失败: ' + error);
+                document.getElementById('shuiyuan-loading-modal').style.display = 'none';
+            });
+        }
+
+        function updateShuiyuanChartWithPredictions(predictionData) {
+            if (!shuiyuanTimelineChart) return;
+
+            // 获取当前图表数据
+            const currentData = shuiyuanTimelineChart.data;
+            
+            // 定义固定的情感顺序，确保与后端一致
+            const orderedEmotions = ['joy', 'neutral', 'anger', 'sadness', 'fear', 'disgust', 'surprise'];
+            
+            // 计算时间跨度
+            const timestamps = currentShuiyuanComments.map(item => item.timestamp);
+            const timeSpan = Math.max(...timestamps) - Math.min(...timestamps);
+            
+            // 根据时间跨度选择显示格式
+            let timeFormat;
+            if (timeSpan <= 24 * 3600) {  // 小于等于1天
+                timeFormat = { hour: '2-digit', minute: '2-digit' };
+            } else if (timeSpan <= 7 * 24 * 3600) {  // 小于等于7天
+                timeFormat = { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
+            } else {
+                timeFormat = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            }
+            
+            // 添加预测数据
+            const predictionLabels = predictionData.map(item => {
+                const date = new Date(item.timestamp * 1000);
+                return date.toLocaleString('zh-CN', timeFormat);
+            });
+            
+            // 创建历史数据集
+            const historicalDatasets = currentData.datasets.map(dataset => ({
+                ...dataset,
+                data: dataset.data,
+                fill: true,
+                pointRadius: 0,
+                borderWidth: 1,
+                tension: 0.1,
+                cubicInterpolationMode: 'default'
+            }));
+
+            // 创建预测数据集
+            const predictionDatasets = currentData.datasets.map(dataset => {
+                const newData = new Array(currentData.labels.length).fill(null);
+                
+                predictionData.forEach((pred, index) => {
+                    let emotionProbs = pred.emotion_probabilities;
+                    
+                    // 验证和修复归一化
+                    const probSum = emotionProbs.reduce((sum, prob) => sum + prob, 0);
+                    
+                    // 如果总和不为1，进行归一化
+                    if (Math.abs(probSum - 1.0) > 1e-10) {
+                        console.log(`警告：预测${index + 1}概率总和不为1 (${probSum})，进行归一化`);
+                        emotionProbs = emotionProbs.map(prob => prob / probSum);
+                    }
+                    
+                    // 使用固定的情感顺序索引
+                    const emotionIndex = orderedEmotions.indexOf(dataset.label);
+                    if (emotionIndex !== -1 && emotionIndex < emotionProbs.length) {
+                        const percentage = emotionProbs[emotionIndex] * 100;
+                        newData.push(percentage);
+                    } else {
+                        newData.push(0);
+                    }
+                });
+                
+                return {
+                    ...dataset,
+                    data: newData,
+                    fill: true,
+                    pointRadius: 0,
+                    borderWidth: 1,
+                    tension: 0.1,
+                    cubicInterpolationMode: 'default',
+                    borderDash: [5, 5],
+                    borderColor: dataset.borderColor,
+                    backgroundColor: dataset.backgroundColor
+                };
+            });
+
+            // 更新图表
+            shuiyuanTimelineChart.data.labels = [...currentData.labels, ...predictionLabels];
+            shuiyuanTimelineChart.data.datasets = [...historicalDatasets, ...predictionDatasets];
+            
+            // 更新图表
+            shuiyuanTimelineChart.update();
+        }
+    </script>
+</body>
+</html> 
