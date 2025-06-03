@@ -13,7 +13,7 @@
 </p>
 
 
-## Project Overview
+## 🔍 Project Overview
 This project focuses on Emotion analysis and prediction, with the following main components:
 - **Single-sentence Emotion classification**: Determining the emotion polarity of individual sentences.
 - **Temporal Emotion trend analysis**: Analyzing how emotion evolves over time within a sequence of texts.
@@ -27,7 +27,7 @@ This project focuses on Emotion analysis and prediction, with the following main
 ![network3](img/network3.png)
 
 
-## Quick Start
+## 🚀 Quick Start
 Version Compatibility
 
 - Python >= 3.10
