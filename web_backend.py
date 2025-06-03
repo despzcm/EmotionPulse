@@ -14,6 +14,7 @@ import threading
 import queue
 import time
 from arima_emotion_predictor import SimpleARIMAPredictor
+from reddit_emotion_prediction import EmotionPredictor
 
 app = Flask(__name__)
 
@@ -46,17 +47,7 @@ def get_emotion_analyzer():
     if _emotion_analyzer is None:
         classifier = get_emotion_classifier()
         _emotion_analyzer = RedditEmotionAnalyzer.get_analyzer(classifier=classifier)
-        print("情感分析器已初始化")
     return _emotion_analyzer
-
-def get_emotion_predictor():
-    """获取情感预测器实例（单例模式）"""
-    global _emotion_predictor
-    if _emotion_predictor is None:
-        classifier = get_emotion_classifier()
-        _emotion_predictor = SimpleARIMAPredictor(classifier=classifier)
-        print("ARIMA情感预测器已初始化")
-    return _emotion_predictor
 
 # 下载必要的NLTK数据
 # nltk.download('stopwords')
@@ -404,6 +395,15 @@ def crawl_reddit_post(url, task_id):
     except Exception as e:
         analysis_tasks[task_id]['status'] = 'error'
         analysis_tasks[task_id]['error'] = str(e)
+        
+def get_emotion_predictor():
+    """获取情感预测器实例（单例模式）"""
+    global _emotion_predictor
+    if _emotion_predictor is None:
+        classifier = get_emotion_classifier()
+        _emotion_predictor = SimpleARIMAPredictor(classifier=classifier)
+        # _emotion_predictor = EmotionPredictor()
+    return _emotion_predictor
 
 @app.route('/predict_future_emotions', methods=['POST'])
 def predict_future_emotions():
