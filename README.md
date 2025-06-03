@@ -37,9 +37,11 @@ nltk.download('stopwords')
 
 4. **Reddit API**: To use the Reddit crawler functionality, please configure your Reddit API credentials in `config.py`
 
-5. **Baidu Translator API**: To use the Baidu Translator API, please configure your Baidu Translator API credentials in `translationAPI`
+5. **Shuiyuan Cookies**：Put your shuiyuan cookie in the `cookies.txt` file.
 
-6. **Run the code**:
+6. **Baidu Translator API**: To use the Baidu Translator API, please configure your Baidu Translator API credentials in `translationAPI`
+
+7. **Run the code**:
 ```bash
 python web_backend.py
 ```
