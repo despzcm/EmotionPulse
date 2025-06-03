@@ -1,6 +1,17 @@
-# EmotionPulse
+<h1 align="center"> EmotionPulse </h1>
 
-> Temporal Emotion Analysis and Prediction across Communities
+<p align="center">
+    <a href="[https://github.com/despzcm/EmotionPulse]"> <img alt="Github Repository" src="https://img.shields.io/badge/Github-Repository-blue?logo=github&logoColor=blue"> </a>
+</p>
+
+<div align="center">
+  <img src="img/logo.png" alt="演示截图" width="20%">
+</div>
+
+<p align="center">
+ Temporal Emotion Analysis and Prediction across Communities
+</p>
+
 
 ## Project Overview
 This project focuses on Emotion analysis and prediction, with the following main components:
@@ -19,8 +30,8 @@ This project focuses on Emotion analysis and prediction, with the following main
 ## Quick Start
 Version Compatibility
 
-- Python >= 3.7
-- Python 3.8-3.11 is recommended for best compatibility 
+- Python >= 3.10
+- Python 3.10-3.11 is recommended for best compatibility 
 
 1. Install all dependencies using pip:
 ```bash
