@@ -57,7 +57,7 @@ nltk.download('stopwords')
 python web_backend.py
 ```
 
-## Demo
-![demo](img/demo.gif)
+## 📽️ Demo
+![demo](img/1.gif)
 
 
