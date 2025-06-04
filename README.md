@@ -1,7 +1,7 @@
 <h1 align="center"> EmotionPulse </h1>
 
 <p align="center">
-    <a href="[https://github.com/despzcm/EmotionPulse]"> <img alt="Github Repository" src="https://img.shields.io/badge/Github-Repository-blue?logo=github&logoColor=blue"> </a>
+    <a href="https://github.com/despzcm/EmotionPulse"> <img alt="Github Repository" src="https://img.shields.io/badge/Github-Repository-blue?logo=github&logoColor=blue"> </a>
 </p>
 
 <div align="center">
