@@ -58,4 +58,13 @@ nltk.download('stopwords')
 ```bash
 python web_backend.py
 ```
+## 📚Dataset
+We use [GoEmotion](https://huggingface.co/datasets/google-research-datasets/go_emotions) as our training dataset. Below is a visualization of the data distribution in this dataset.
+- The Reddit dialogue dataset was collected in January 2019.
+- Contain emotion–label pairs, covering 28 emotion categories (27 specific emotions plus a neutral class)
+- Comprise 57,164 utterances from 483 subreddits (topics) after data cleaning
+- The neutral label has the highest proportion, accounting for 26% of all instances.
+![dataset](img/dataset.png)
 
+## 🏅Acknowledge
+[shuiyuan exporter](https://github.com/Labyrinth0419/shuiyuan_exporter)
