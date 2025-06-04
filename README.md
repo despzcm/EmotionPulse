@@ -52,12 +52,10 @@ nltk.download('stopwords')
 
 6. **Baidu Translator API**: To use the Baidu Translator API, please configure your Baidu Translator API credentials in `translationAPI`
 
-7. **Run the code**:
+## 📽️ Demo
+![demo](img/1.gif)
+ **Run the code**:
 ```bash
 python web_backend.py
 ```
-
-## 📽️ Demo
-![demo](img/1.gif)
-
 
